@@ -1,30 +1,31 @@
-use super::parser::{parse_simple_version, parse_version_requirement};
+use crate::version::core::Version;
 
 pub fn is_version_outdated(current_req: &str, latest_version: &str) -> bool {
     let current_req = current_req.trim();
 
-    if let Some(parsed_req) = parse_version_requirement(current_req) {
-        if let (Some(current_version), Some(latest_parsed)) = (
-            parse_simple_version(&parsed_req.version),
-            parse_simple_version(latest_version),
-        ) {
-            match parsed_req.operator.as_str() {
-                "^" | "" => {
-                    if current_version.0 == 0 {
-                        current_version.1 != latest_parsed.1 || current_version.0 != latest_parsed.0
-                    } else {
-                        current_version.0 != latest_parsed.0
-                    }
-                }
-                "~" => current_version.0 != latest_parsed.0 || current_version.1 != latest_parsed.1,
-                "=" => parsed_req.version != latest_version,
-                ">=" | ">" | "<=" | "<" => false,
-                _ => parsed_req.version != latest_version,
-            }
-        } else {
-            parsed_req.version != latest_version
-        }
-    } else {
-        current_req != latest_version
+    let current = match Version::parse(current_req) {
+        Some(req) => req,
+        None => return current_req != latest_version,
+    };
+
+    let latest = match Version::parse(latest_version) {
+        Some(version) => version,
+        None => return current_req != latest_version,
+    };
+
+    current < latest
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_version_outdated() {
+        assert!(is_version_outdated("0.7.1", "0.7.2"));
+        assert!(!is_version_outdated("0.7.1", "0.7.0"));
+        assert!(!is_version_outdated("0.7.1", "0.5.92"));
+        assert!(is_version_outdated("4.0.0-rc.3", "4.0.0"));
+        assert!(!is_version_outdated("4.0.0", "4.0.0+build.123"));
     }
 }
