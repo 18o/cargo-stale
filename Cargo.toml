@@ -1,6 +1,6 @@
 [package]
 name = "cargo-stale"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "A fast, concurrent tool to check for outdated dependencies in your Rust Cargo.toml file"
 license = "MIT"
@@ -10,7 +10,7 @@ documentation = "https://docs.rs/cargo-stale"
 readme = "README.md"
 keywords = ["cargo", "dependencies", "outdated", "version", "check"]
 categories = ["command-line-utilities", "development-tools::cargo-plugins"]
-authors = ["john <admin@iios.net>"]
+authors = ["John <admin@iios.net>"]
 
 [[bin]]
 name = "cargo-stale"
