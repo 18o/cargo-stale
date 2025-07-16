@@ -17,45 +17,122 @@ pub fn print_results(results: &[Dependency], cli: &Cli) {
         return;
     }
 
-    println!("\n📊 Dependency Check Results:");
-    println!("{:-<110}", "");
-    println!(
-        "{:<35} {:<20} {:<20} {:<16} {:<20}",
-        "Dependency", "Current Version", "Latest Version", "Status", "Source"
-    );
-    println!("{:-<110}", "");
+    // Check if we have multiple sources (workspace mode)
+    let has_multiple_sources = filtered_results
+        .iter()
+        .map(|dep| &dep.source)
+        .collect::<std::collections::HashSet<_>>()
+        .len()
+        > 1;
 
-    let mut outdated_count = 0;
+    // Calculate dynamic column widths
+    let mut max_name_width = "Dependency".len();
+    let mut max_current_width = "Current Version".len();
+    let mut max_latest_width = "Latest Version".len();
+    let mut max_status_width = "Status".len();
+    let mut max_source_width = if has_multiple_sources {
+        "Source".len()
+    } else {
+        0
+    };
 
-    for dep in &filtered_results {
-        let status = match &dep.latest_version {
-            Some(latest) => {
-                if dep.is_outdated() {
-                    outdated_count += 1;
-                    if is_prerelease_version(latest) {
-                        "🟡 Outdated (Pre)"
+    // Prepare data with status strings to calculate accurate widths
+    let display_data: Vec<_> = filtered_results
+        .iter()
+        .map(|dep| {
+            let name_with_type = format!("{}{}", dep.name, dep.dep_type);
+            let latest_display = dep.latest_version.as_deref().unwrap_or("N/A");
+            let status = match &dep.latest_version {
+                Some(latest) => {
+                    if dep.is_outdated() {
+                        if is_prerelease_version(latest) {
+                            "🟡 Outdated (Pre)"
+                        } else {
+                            "🔴 Outdated"
+                        }
+                    } else if is_prerelease_version(latest) {
+                        "🟢 Latest (Pre)"
                     } else {
-                        "🔴 Outdated"
+                        "✅ Latest"
                     }
-                } else if is_prerelease_version(latest) {
-                    "🟢 Latest (Pre)"
-                } else {
-                    "✅ Latest"
                 }
-            }
-            None => "❓ Unknown",
-        };
+                None => "❓ Unknown",
+            };
 
-        let latest_display = dep.latest_version.as_deref().unwrap_or("N/A");
-        let name_with_type = format!("{}{}", dep.name, dep.dep_type);
+            (
+                name_with_type,
+                &dep.current_version,
+                latest_display,
+                &dep.source,
+                status,
+            )
+        })
+        .collect();
 
+    // Calculate maximum widths
+    for (name, current, latest, source, status) in &display_data {
+        max_name_width = max_name_width.max(name.len());
+        max_current_width = max_current_width.max(current.len());
+        max_latest_width = max_latest_width.max(latest.len());
+        if has_multiple_sources {
+            max_source_width = max_source_width.max(source.len());
+        }
+        max_status_width = max_status_width.max(status.len());
+    }
+
+    // Add padding to each column
+    let name_width = max_name_width + 2;
+    let current_width = max_current_width + 2;
+    let latest_width = max_latest_width + 2;
+    let source_width = if has_multiple_sources {
+        max_source_width + 2
+    } else {
+        0
+    };
+
+    println!("\n📊 Dependency Check Results:");
+
+    if has_multiple_sources {
         println!(
-            "{:<35} {:<20} {:<20} {:<16} {:<20}",
-            name_with_type, dep.current_version, latest_display, status, dep.source
+            "{:<name_width$} {:<current_width$} {:<latest_width$} {:<source_width$} Status",
+            "Dependency",
+            "Current Version",
+            "Latest Version",
+            "Source",
+            name_width = name_width,
+            current_width = current_width,
+            latest_width = latest_width,
+            source_width = source_width,
+        );
+    } else {
+        println!(
+            "{:<name_width$} {:<current_width$} {:<latest_width$} Status",
+            "Dependency",
+            "Current Version",
+            "Latest Version",
+            name_width = name_width,
+            current_width = current_width,
+            latest_width = latest_width,
         );
     }
 
-    println!("{:-<110}", "");
+    let mut outdated_count = 0;
+
+    for (name, current, latest, source, status) in &display_data {
+        if status.contains("Outdated") {
+            outdated_count += 1;
+        }
+
+        if has_multiple_sources {
+            println!(
+                "{name:<name_width$} {current:<current_width$} {latest:<latest_width$} {source:<source_width$} {status}",
+            );
+        } else {
+            println!(
+                "{name:<name_width$} {current:<current_width$} {latest:<latest_width$} {status}",
+            );
+        }
+    }
 
     if outdated_count > 0 {
         println!("⚠️  Found {outdated_count} outdated dependencies");

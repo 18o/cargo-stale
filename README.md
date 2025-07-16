@@ -87,41 +87,21 @@ Options:
 🚀 Starting cargo-stale...
 
 📊 Dependency Check Results:
---------------------------------------------------------------------------------------------------------------
-Dependency                          Current Version      Latest Version       Status           Source
---------------------------------------------------------------------------------------------------------------
-anyhow (workspace)                  1                    1.0.98               ✅ Latest         root
-async-trait (workspace)             0.1                  0.1.88               ✅ Latest         root
-bincode (workspace)                 2                    2.0.1                ✅ Latest         root
-chrono (workspace)                  0.4                  0.4.41               ✅ Latest         root
-dashmap (workspace)                 6.1                  7.0.0-rc2            🟡 Outdated (Pre) root
-futures-util (workspace)            0.3                  0.3.31               ✅ Latest         root
-log (workspace)                     0.4                  0.4.27               ✅ Latest         root
-rayon (workspace)                   1.10                 1.10.0               ✅ Latest         root
-rustls (workspace)                  0.23                 0.23.29              ✅ Latest         root
-serde (workspace)                   1                    1.0.219              ✅ Latest         root
-serde_json (workspace)              1                    1.0.140              ✅ Latest         root
-tokio (workspace)                   1                    1.46.1               ✅ Latest         root
-tokio-tungstenite (workspace)       0.27                 0.27.0               ✅ Latest         root
-tracing (workspace)                 0.1                  0.1.41               ✅ Latest         root
-tracing-subscriber (workspace)      0.3                  0.3.19               ✅ Latest         root
-uuid (workspace)                    1.16                 1.17.0               🔴 Outdated       root
-anyhow                              1                    1.0.98               ✅ Latest         client
-futures-util                        0.3                  0.3.31               ✅ Latest         client
-http                                1.3                  1.3.1                ✅ Latest         client
-rand                                0.9                  0.9.1                ✅ Latest         client
-rustls-pki-types                    1.12                 1.12.0               ✅ Latest         client
-serde_json                          1                    1.0.140              ✅ Latest         client
-tauri                               2                    2.6.2                ✅ Latest         client
-tauri-plugin-clipboard-manager      2                    2.3.0                ✅ Latest         client
-tauri-plugin-geolocation            2                    2.3.0                ✅ Latest         client
-tauri-plugin-http                   2                    2.5.0                ✅ Latest         client
-tauri-plugin-opener                 2                    2.4.0                ✅ Latest         client
-tauri-plugin-os                     2                    2.3.0                ✅ Latest         client
-tauri-plugin-store                  2                    2.3.0                ✅ Latest         client
-thiserror                           2.0.12               2.0.12               ✅ Latest         client
-serde                               1                    1.0.219              ✅ Latest         shared
---------------------------------------------------------------------------------------------------------------
+Dependency                       Current Version   Latest Version   Source       Status
+anyhow (workspace)               1                 1.0.98           root         ✅ Latest
+async-trait (workspace)          0.1               0.1.88           root         ✅ Latest
+bincode (workspace)              2                 2.0.1            root         ✅ Latest
+chrono (workspace)               0.4               0.4.41           root         ✅ Latest
+dashmap (workspace)              6.1               7.0.0-rc2        root         🟡 Outdated (Pre)
+futures-util (workspace)         0.3               0.3.31           root         ✅ Latest
+log (workspace)                  0.4               0.4.27           root         ✅ Latest
+tracing-subscriber (workspace)   0.3               0.3.19           root         ✅ Latest
+uuid (workspace)                 1.16              1.17.0           root         🔴 Outdated
+anyhow                           1                 1.0.98           ppy-client   ✅ Latest
+tauri-plugin-store               2                 2.3.0            ppy-client   ✅ Latest
+thiserror                        2.0.12            2.0.12           ppy-client   ✅ Latest
+serde                            1                 1.0.219          shared       ✅ Latest
+⚠️  Found 2 outdated dependencies
 ```
 
 ## How It Works
@@ -144,6 +124,7 @@ This follows [Semantic Versioning](https://semver.org/) and [Cargo's version req
 - [ ] Interactive mode for selective dependency updates
 - [ ] Support for private registries and alternative registries
 - [ ] Configuration file support for custom rules
+- [ ] Check unused dependencies
 
 ## System Requirements
 
