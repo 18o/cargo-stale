@@ -4,13 +4,14 @@ A fast, concurrent tool to check for outdated dependencies in your Rust `Cargo.t
 
 ## Features
 
-- 🚀 **Fast Concurrent Checking**: Checks all dependencies simultaneously using async/await
-- 📦 **Smart Version Comparison**: Understands semantic versioning and compatibility ranges
-- 🎯 **Dependency Type Support**: Handles normal, dev, and build dependencies
-- 🔍 **Flexible Filtering**: Show only outdated dependencies or all dependencies
-- 📊 **Clear Output**: Well-formatted table showing current vs latest versions
-- 🛠️ **Configurable**: Various command-line options for different use cases
-- ⚡ **Cargo Subcommand**: Works as both a standalone tool and a cargo subcommand
+- Fast concurrent dependency checking using async/await
+- Smart semantic version comparison and compatibility ranges
+- Support for normal, dev, build, and workspace dependencies
+- Flexible filtering to show outdated or all dependencies
+- Clean table output with current vs latest versions
+- Multiple command-line options for different use cases
+- Works as both cargo subcommand and standalone tool
+- Workspace member support with dependency source tracking
 
 ## Installation
 
@@ -117,6 +118,13 @@ cargo-stale reads your `Cargo.toml` file and concurrently queries the crates.io 
 
 This follows [Semantic Versioning](https://semver.org/) and [Cargo's version requirement specifications](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html).
 
+## TODO
+
+- [ ] Automatically update Cargo.toml with latest versions (add `--update` flag)
+- [ ] Interactive mode for selective dependency updates
+- [ ] Support for private registries and alternative registries
+- [ ] Configuration file support for custom rules
+
 ## System Requirements
 
 - Rust 1.70.0 or later
@@ -174,4 +182,4 @@ cargo-stale strikes the perfect balance between functionality and performance:
 ✅ **Reliable**: Respects your version requirements and doesn't suggest breaking changes  
 ✅ **Convenient**: Works as both a cargo subcommand and standalone tool
 
-Perfect for quick dependency checks in your daily development workflow!
+Perfect for quick dependency checks in your daily development
