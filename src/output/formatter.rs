@@ -20,7 +20,7 @@ pub fn print_results(results: &[Dependency], cli: &Cli) {
     println!("\n📊 Dependency Check Results:");
     println!("{:-<110}", "");
     println!(
-        "{:<35} {:<20} {:<20} {:<15} {:<15}",
+        "{:<35} {:<20} {:<20} {:<16} {:<20}",
         "Dependency", "Current Version", "Latest Version", "Status", "Source"
     );
     println!("{:-<110}", "");
@@ -29,10 +29,16 @@ pub fn print_results(results: &[Dependency], cli: &Cli) {
 
     for dep in &filtered_results {
         let status = match &dep.latest_version {
-            Some(_latest) => {
+            Some(latest) => {
                 if dep.is_outdated() {
                     outdated_count += 1;
-                    "🔴 Outdated"
+                    if is_prerelease_version(latest) {
+                        "🟡 Outdated (Pre)"
+                    } else {
+                        "🔴 Outdated"
+                    }
+                } else if is_prerelease_version(latest) {
+                    "🟢 Latest (Pre)"
                 } else {
                     "✅ Latest"
                 }
@@ -44,7 +50,7 @@ pub fn print_results(results: &[Dependency], cli: &Cli) {
         let name_with_type = format!("{}{}", dep.name, dep.dep_type);
 
         println!(
-            "{:<35} {:<20} {:<20} {:<15} {:<15}",
+            "{:<35} {:<20} {:<20} {:<16} {:<20}",
             name_with_type, dep.current_version, latest_display, status, dep.source
         );
     }
@@ -59,4 +65,18 @@ pub fn print_results(results: &[Dependency], cli: &Cli) {
     } else if !cli.outdated_only {
         println!("🎉 All dependencies are up to date!");
     }
+}
+
+/// Check if a version string contains pre-release identifiers
+fn is_prerelease_version(version: &str) -> bool {
+    version.contains('-')
+        && (version.contains("alpha") ||
+        version.contains("beta") ||
+        version.contains("rc") ||
+        version.contains("pre") ||
+        version.contains("dev") ||
+        // Also catch numbered pre-releases like "1.0.0-1"
+        version.split('-').nth(1).is_some_and(|part| {
+            part.chars().next().is_some_and(|c| c.is_ascii_digit())
+        }))
 }
