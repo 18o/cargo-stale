@@ -3,7 +3,9 @@ use std::{fs, path::Path};
 use toml::Value;
 
 pub fn get_workspace_members(manifest_path: &str) -> Result<Vec<String>> {
-    let content = fs::read_to_string(manifest_path)
+    // Ensure the manifest path is a valid Cargo.toml file
+    let manifest_path = crate::utils::ensure_cargo_toml_path(manifest_path);
+    let content = fs::read_to_string(manifest_path.as_ref())
         .with_context(|| format!("Failed to read file: {manifest_path}"))?;
 
     let toml: Value = toml::from_str(&content).with_context(|| "Failed to parse Cargo.toml")?;
@@ -12,7 +14,9 @@ pub fn get_workspace_members(manifest_path: &str) -> Result<Vec<String>> {
 
     if let Some(workspace) = toml.get("workspace") {
         if let Some(member_list) = workspace.get("members").and_then(|v| v.as_array()) {
-            let base_dir = Path::new(manifest_path).parent().unwrap_or(Path::new("."));
+            let base_dir = Path::new(manifest_path.as_ref())
+                .parent()
+                .unwrap_or(Path::new("."));
 
             for member in member_list {
                 if let Some(member_str) = member.as_str() {

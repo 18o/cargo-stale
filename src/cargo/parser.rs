@@ -9,13 +9,13 @@ pub fn parse_cargo_toml(
     include_build: bool,
     source_name: &str,
 ) -> Result<Vec<(String, String, DependencyType, String)>> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("Failed to read file: {path}"))?;
+    // Ensure the path is a valid Cargo.toml file
+    let path = crate::utils::ensure_cargo_toml_path(path);
+    let content = fs::read_to_string(path.as_ref())
+        .with_context(|| format!("Failed to read file: {path}"))?;
 
     let toml: Value = toml::from_str(&content).with_context(|| "Failed to parse Cargo.toml")?;
-
     let mut dependencies = Vec::new();
-
     let mut workspace_versions = std::collections::HashMap::new();
     if let Some(workspace_deps) = toml
         .get("workspace")

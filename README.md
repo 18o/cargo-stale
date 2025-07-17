@@ -73,7 +73,7 @@ cargo-stale --outdated-only --verbose
 cargo stale [OPTIONS]
 
 Options:
-  -m, --manifest <MANIFEST>    Path to Cargo.toml file [default: Cargo.toml]
+  -m, --manifest <MANIFEST>   Path to Cargo.toml file [default: Cargo.toml]
   -o, --outdated-only         Show only outdated dependencies
   -b, --build-deps            Include build dependencies
   -v, --verbose               Verbose output

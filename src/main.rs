@@ -7,6 +7,7 @@ mod cargo;
 mod cli;
 mod output;
 mod types;
+mod utils;
 mod version;
 
 use cli::Cli;
