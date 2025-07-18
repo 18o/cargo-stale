@@ -88,7 +88,7 @@ Options:
 
 📊 Dependency Check Results:
 Dependency                       Current Version   Latest Version   Source       Status
-anyhow (workspace)               1                 1.0.98           root         ✅ Latest
+anyhow (workspace)               *                 1.0.98           root         ✅ Latest
 async-trait (workspace)          0.1               0.1.88           root         ✅ Latest
 bincode (workspace)              2                 2.0.1            root         ✅ Latest
 chrono (workspace)               0.4               0.4.41           root         ✅ Latest

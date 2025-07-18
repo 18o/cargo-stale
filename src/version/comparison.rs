@@ -2,6 +2,9 @@ use crate::version::core::Version;
 
 pub fn is_version_outdated(current_req: &str, latest_version: &str) -> bool {
     let current_req = current_req.trim();
+    if current_req == "*" {
+        return false;
+    }
 
     let current = match Version::parse(current_req) {
         Some(req) => req,
