@@ -30,5 +30,6 @@ mod tests {
         assert!(!is_version_outdated("0.7.1", "0.5.92"));
         assert!(is_version_outdated("4.0.0-rc.3", "4.0.0"));
         assert!(!is_version_outdated("4.0.0", "4.0.0+build.123"));
+        assert!(!is_version_outdated("=0.7.3", "0.7.3"));
     }
 }
