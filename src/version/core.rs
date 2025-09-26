@@ -12,6 +12,11 @@ pub struct Version {
 impl Version {
     pub fn parse(version_str: &str) -> Option<Self> {
         let version_str = version_str.trim();
+        let version_str = if let Some(stripped) = version_str.strip_prefix('=') {
+            stripped
+        } else {
+            version_str
+        };
 
         let (core_version, pre_and_build) = if let Some(pos) = version_str.find('-') {
             (&version_str[..pos], Some(&version_str[pos + 1..]))
