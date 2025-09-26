@@ -64,17 +64,17 @@ pub fn parse_cargo_toml(
     }
 
     // Parse [build-dependencies] (optional)
-    if include_build {
-        if let Some(build_deps) = toml.get("build-dependencies").and_then(|v| v.as_table()) {
-            for (name, value) in build_deps {
-                if let Some(version) = extract_version_with_workspace(value, &workspace_versions) {
-                    dependencies.push((
-                        name.clone(),
-                        version,
-                        DependencyType::Build,
-                        source_name.to_string(),
-                    ));
-                }
+    if include_build
+        && let Some(build_deps) = toml.get("build-dependencies").and_then(|v| v.as_table())
+    {
+        for (name, value) in build_deps {
+            if let Some(version) = extract_version_with_workspace(value, &workspace_versions) {
+                dependencies.push((
+                    name.clone(),
+                    version,
+                    DependencyType::Build,
+                    source_name.to_string(),
+                ));
             }
         }
     }
@@ -88,7 +88,7 @@ fn extract_version_only(value: &Value) -> Option<String> {
         Value::Table(table) => table
             .get("version")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+            .map(std::string::ToString::to_string),
         _ => None,
     }
 }
@@ -100,7 +100,7 @@ fn extract_version_with_workspace(
     match value {
         Value::String(version) => Some(version.clone()),
         Value::Table(table) => {
-            if table.get("workspace").and_then(|v| v.as_bool()) == Some(true) {
+            if table.get("workspace").and_then(toml::Value::as_bool) == Some(true) {
                 None
             } else if let Some(version) = table.get("version").and_then(|v| v.as_str()) {
                 Some(version.to_string())

@@ -1,3 +1,11 @@
+#![warn(
+    clippy::pedantic,
+    clippy::style,
+    clippy::complexity,
+    clippy::perf,
+    clippy::correctness
+)]
+
 use anyhow::Result;
 use clap::Parser;
 use std::{collections::HashMap, env};
@@ -26,7 +34,7 @@ async fn main() -> Result<()> {
         Cli::parse()
     };
 
-    if cli.verbose {
+    if cli.output_verbosity().is_verbose() {
         env_logger::Builder::from_default_env()
             .filter_level(log::LevelFilter::Debug)
             .init();
@@ -41,20 +49,24 @@ async fn main() -> Result<()> {
     let mut all_dependencies = Vec::new();
 
     // Parse main Cargo.toml
-    let main_deps = cargo::parser::parse_cargo_toml(&cli.manifest, cli.build_deps, "root")?;
+    let main_deps = cargo::parser::parse_cargo_toml(
+        &cli.manifest,
+        cli.dependency_scope().includes_build_deps(),
+        "root",
+    )?;
     all_dependencies.extend(main_deps);
 
     // Parse workspace members if enabled
-    if cli.workspace {
+    if cli.workspace_mode().includes_members() {
         let workspace_members = cargo::workspace::get_workspace_members(&cli.manifest)?;
         for member_path in workspace_members {
-            if cli.verbose {
+            if cli.output_verbosity().is_verbose() {
                 println!("📦 Checking workspace member: {member_path}");
             }
 
             let member_deps = cargo::parser::parse_cargo_toml(
                 &member_path,
-                cli.build_deps,
+                cli.dependency_scope().includes_build_deps(),
                 &cargo::workspace::get_crate_name(&member_path),
             )?;
             all_dependencies.extend(member_deps);
@@ -63,7 +75,7 @@ async fn main() -> Result<()> {
 
     let client = api::crates_io::create_client()?;
 
-    if cli.verbose {
+    if cli.output_verbosity().is_verbose() {
         println!("📦 Found {} dependencies to check", all_dependencies.len());
     }
 
@@ -72,7 +84,7 @@ async fn main() -> Result<()> {
         unique_crates.insert(name.clone());
     }
 
-    if cli.verbose {
+    if cli.output_verbosity().is_verbose() {
         println!("📦 Unique crates to check: {}", unique_crates.len());
     }
 
@@ -80,7 +92,7 @@ async fn main() -> Result<()> {
         .into_iter()
         .map(|name| {
             let client = client.clone();
-            let verbose = cli.verbose;
+            let verbose = cli.output_verbosity().is_verbose();
 
             tokio::spawn(async move {
                 if verbose {
@@ -103,7 +115,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    if cli.verbose {
+    if cli.output_verbosity().is_verbose() {
         println!("✅ Completed fetching all versions");
     }
 
@@ -120,7 +132,7 @@ async fn main() -> Result<()> {
         });
     }
 
-    if cli.verbose {
+    if cli.output_verbosity().is_verbose() {
         println!("✅ Completed processing all dependencies");
     }
 

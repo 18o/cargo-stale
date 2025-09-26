@@ -6,14 +6,12 @@ pub fn is_version_outdated(current_req: &str, latest_version: &str) -> bool {
         return false;
     }
 
-    let current = match Version::parse(current_req) {
-        Some(req) => req,
-        None => return current_req != latest_version,
+    let Some(current) = Version::parse(current_req) else {
+        return current_req != latest_version;
     };
 
-    let latest = match Version::parse(latest_version) {
-        Some(version) => version,
-        None => return current_req != latest_version,
+    let Some(latest) = Version::parse(latest_version) else {
+        return current_req != latest_version;
     };
 
     current < latest
