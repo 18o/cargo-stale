@@ -123,6 +123,29 @@ async fn fetch_versions(
         println!("📦 Unique crates to check: {}", unique_names.len());
     }
 
+    // Try local index first (unless --online is specified)
+    if !cli.use_online() {
+        match api::local_index::fetch_versions_from_local_index(&unique_names) {
+            Ok(cache) => {
+                let found = cache.values().filter(|v| v.is_some()).count();
+                if cli.output_verbosity().is_verbose() {
+                    println!("📚 Local index: resolved {}/{} crates", found, unique_names.len());
+                }
+                if found > 0 {
+                    return Ok(cache);
+                }
+            }
+            Err(e) => {
+                if cli.output_verbosity().is_verbose() {
+                    println!("⚠️  Local index unavailable: {e}, falling back to online mode");
+                }
+            }
+        }
+    } else if cli.output_verbosity().is_verbose() {
+        println!("🌐 Online mode: fetching from crates.io API");
+    }
+
+    // Fallback: online HTTP API with concurrency limiter
     let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS));
     let version_tasks: Vec<_> = unique_names
         .into_iter()
