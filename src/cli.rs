@@ -72,7 +72,7 @@ pub struct Cli {
     build_deps: bool,
 
     /// Include workspace members
-    #[arg(short, long, default_value = "true")]
+    #[arg(short, long, default_value_t = true, action = clap::ArgAction::Set, num_args = 0..=1, require_equals = true, default_missing_value = "true")]
     workspace: bool,
 
     /// Verbose output

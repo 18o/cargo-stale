@@ -94,60 +94,64 @@ impl PartialOrd for Version {
 
 impl Ord for Version {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Compare major version first
-        match self.major.cmp(&other.major) {
-            std::cmp::Ordering::Equal => {
-                // If either version has no minor, they are equal at major level
-                match (&self.minor, &other.minor) {
-                    (None, None) => {
-                        // Both have no minor, handle pre-release comparison
-                        match (&self.pre_release, &other.pre_release) {
-                            (None, None) => std::cmp::Ordering::Equal,
-                            (Some(_), None) => std::cmp::Ordering::Less, // Pre-release < normal
-                            (None, Some(_)) => std::cmp::Ordering::Greater, // Normal > pre-release
-                            (Some(a), Some(b)) => a.cmp(b), // Compare pre-release strings
-                        }
-                    }
-                    (None, Some(_)) | (Some(_), None) => std::cmp::Ordering::Equal,
-                    (Some(self_minor), Some(other_minor)) => {
-                        // Compare minor versions
-                        match self_minor.cmp(other_minor) {
-                            std::cmp::Ordering::Equal => {
-                                // If either version has no patch, they are equal at minor level
-                                match (&self.patch, &other.patch) {
-                                    (None, None) => {
-                                        // Both have no patch, handle pre-release comparison
-                                        match (&self.pre_release, &other.pre_release) {
-                                            (None, None) => std::cmp::Ordering::Equal,
-                                            (Some(_), None) => std::cmp::Ordering::Less,
-                                            (None, Some(_)) => std::cmp::Ordering::Greater,
-                                            (Some(a), Some(b)) => a.cmp(b),
-                                        }
-                                    }
-                                    (None, Some(_)) | (Some(_), None) => std::cmp::Ordering::Equal,
-                                    (Some(self_patch), Some(other_patch)) => {
-                                        // Compare patch versions
-                                        match self_patch.cmp(other_patch) {
-                                            std::cmp::Ordering::Equal => {
-                                                // Handle pre-release comparison
-                                                match (&self.pre_release, &other.pre_release) {
-                                                    (None, None) => std::cmp::Ordering::Equal,
-                                                    (Some(_), None) => std::cmp::Ordering::Less,
-                                                    (None, Some(_)) => std::cmp::Ordering::Greater,
-                                                    (Some(a), Some(b)) => a.cmp(b),
-                                                }
-                                            }
-                                            patch_ordering => patch_ordering,
-                                        }
-                                    }
-                                }
-                            }
-                            minor_ordering => minor_ordering,
-                        }
-                    }
-                }
-            }
-            major_ordering => major_ordering,
+        // Compare major, then minor (None = 0), then patch (None = 0)
+        let major_ord = self.major.cmp(&other.major);
+        if major_ord != std::cmp::Ordering::Equal {
+            return major_ord;
+        }
+
+        let self_minor = self.minor.unwrap_or(0);
+        let other_minor = other.minor.unwrap_or(0);
+        let minor_ord = self_minor.cmp(&other_minor);
+        if minor_ord != std::cmp::Ordering::Equal {
+            return minor_ord;
+        }
+
+        let self_patch = self.patch.unwrap_or(0);
+        let other_patch = other.patch.unwrap_or(0);
+        let patch_ord = self_patch.cmp(&other_patch);
+        if patch_ord != std::cmp::Ordering::Equal {
+            return patch_ord;
+        }
+
+        // Pre-release comparison per semver spec:
+        // No pre-release > has pre-release
+        // Both have pre-release: compare identifiers per semver rules
+        compare_pre_release(self.pre_release.as_ref(), other.pre_release.as_ref())
+    }
+}
+
+/// Compare pre-release identifiers per semver spec (item 11).
+/// - No pre-release > any pre-release
+/// - Split by '.', compare each identifier:
+///   - Numeric identifiers compared as integers
+///   - Alphanumeric compared lexicographically
+///   - Numeric < alphanumeric
+///   - Shorter list is less (if all preceding are equal)
+fn compare_pre_release(a: Option<&String>, b: Option<&String>) -> std::cmp::Ordering {
+    match (a, b) {
+        (None, None) => std::cmp::Ordering::Equal,
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (Some(a), Some(b)) => compare_pre_release_identifiers(a, b),
+    }
+}
+
+fn compare_pre_release_identifiers(a: &str, b: &str) -> std::cmp::Ordering {
+    let a_parts: Vec<&str> = a.split('.').collect();
+    let b_parts: Vec<&str> = b.split('.').collect();
+
+    for (a_id, b_id) in a_parts.iter().zip(b_parts.iter()) {
+        let ord = match (a_id.parse::<u64>(), b_id.parse::<u64>()) {
+            (Ok(a_num), Ok(b_num)) => a_num.cmp(&b_num),
+            (Ok(_), Err(_)) => std::cmp::Ordering::Less, // numeric < alphanumeric
+            (Err(_), Ok(_)) => std::cmp::Ordering::Greater,
+            (Err(_), Err(_)) => a_id.cmp(b_id),
+        };
+        if ord != std::cmp::Ordering::Equal {
+            return ord;
         }
     }
+
+    a_parts.len().cmp(&b_parts.len())
 }

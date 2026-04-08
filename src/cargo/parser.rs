@@ -95,23 +95,22 @@ fn extract_version_only(value: &Value) -> Option<String> {
 
 fn extract_version_with_workspace(
     value: &Value,
-    _workspace_versions: &std::collections::HashMap<String, String>,
+    workspace_versions: &std::collections::HashMap<String, String>,
 ) -> Option<String> {
     match value {
         Value::String(version) => Some(version.clone()),
         Value::Table(table) => {
             if table.get("workspace").and_then(toml::Value::as_bool) == Some(true) {
-                None
-            } else if let Some(version) = table.get("version").and_then(|v| v.as_str()) {
-                Some(version.to_string())
-            } else if table.contains_key("path") {
-                // ignore path dependencies
-                None
-            } else if table.contains_key("git") {
-                // ignore git dependencies
+                // Resolve workspace = true by looking up the version from [workspace.dependencies]
+                // Note: the dependency itself is already added from the workspace section,
+                // so we return None here to avoid duplicates.
+                let _ = workspace_versions;
                 None
             } else {
-                None
+                table
+                    .get("version")
+                    .and_then(|v| v.as_str())
+                    .map(std::string::ToString::to_string)
             }
         }
         _ => None,
