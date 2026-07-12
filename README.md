@@ -110,7 +110,7 @@ cargo-stale reads your `Cargo.toml` file and concurrently queries the crates.io 
 
 ### Version Compatibility Rules
 
-- **`"1"` or `"^1.0"`** - Compatible with 1.x.x series, only outdated when 2.x.x is available
+- **`"1"` or `"^1.0"`** - Compatible with 1.x.x series, only reports an update when a stable incompatible version is available
 - **`"^0.10"`** - Compatible with 0.10.x series, outdated when 0.11.x is available (0.x versions are more restrictive)
 - **`"~1.2"`** - Compatible with 1.2.x series, outdated when 1.3.x or higher is available
 - **`"=1.2.3"`** - Exact version, outdated when any newer version is available
@@ -128,7 +128,7 @@ This follows [Semantic Versioning](https://semver.org/) and [Cargo's version req
 
 ## System Requirements
 
-- Rust 1.70.0 or later
+- Rust 1.86.0 or later
 - Internet connection (to query crates.io API)
 
 ## Dependencies

@@ -3,6 +3,8 @@ use crates_index::{HashKind, SparseIndex};
 use log::{debug, warn};
 use std::collections::HashMap;
 
+use crate::types::VersionLookup;
+
 const CRATES_IO_URL: &str = "sparse+https://index.crates.io/";
 
 /// Fetch latest versions from the local crates.io sparse index (~/.cargo/registry/index/).
@@ -10,7 +12,7 @@ const CRATES_IO_URL: &str = "sparse+https://index.crates.io/";
 /// Falls back to None for crates not found in the index.
 pub fn fetch_versions_from_local_index(
     crate_names: &[String],
-) -> Result<HashMap<String, Option<String>>> {
+) -> Result<HashMap<String, VersionLookup>> {
     // Try Stable hash first (Cargo 1.85+), then Legacy hash (older Cargo)
     let index = open_sparse_index()?;
 
@@ -22,14 +24,14 @@ pub fn fetch_versions_from_local_index(
             if let Some(version) = krate.highest_normal_version() {
                 let version_str = version.version();
                 debug!("Local index: {name} -> {version_str}");
-                results.insert(name.clone(), Some(version_str.to_string()));
+                results.insert(name.clone(), VersionLookup::Found(version_str.to_string()));
             } else {
                 debug!("Local index: {name} found but no normal version");
-                results.insert(name.clone(), None);
+                results.insert(name.clone(), VersionLookup::NotFound);
             }
         } else {
             warn!("Crate '{name}' not found in local index");
-            results.insert(name.clone(), None);
+            results.insert(name.clone(), VersionLookup::NotFound);
         }
     }
 

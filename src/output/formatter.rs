@@ -1,5 +1,6 @@
 use crate::cli::Cli;
-use crate::types::Dependency;
+use crate::types::{Dependency, VersionLookup};
+use crate::version::comparison::VersionStatus;
 
 type DisplayData<'a> = (String, &'a str, &'a str, &'a str, &'static str);
 
@@ -25,7 +26,10 @@ pub fn print_results(results: &[Dependency], cli: &Cli) {
 
     print_header(&column_widths, has_multiple_sources);
     let outdated_count = print_dependency_rows(&display_data, &column_widths, has_multiple_sources);
-    print_summary(outdated_count, cli);
+    let has_indeterminate = filtered_results
+        .iter()
+        .any(|dependency| dependency.status().is_indeterminate());
+    print_summary(outdated_count, has_indeterminate, cli);
 }
 
 fn filter_results<'a>(results: &'a [Dependency], cli: &Cli) -> Vec<&'a Dependency> {
@@ -58,7 +62,12 @@ fn prepare_display_data<'a>(filtered_results: &[&'a Dependency]) -> Vec<DisplayD
         .iter()
         .map(|dep| {
             let name_with_type = format!("{}{}", dep.name, dep.dep_type);
-            let latest_display = dep.latest_version.as_deref().unwrap_or("N/A");
+            let latest_display = match &dep.lookup {
+                VersionLookup::Found(version) => version.as_str(),
+                VersionLookup::NotFound => "Not found",
+                VersionLookup::Unavailable => "Unavailable",
+                VersionLookup::UnsupportedSource => "Unsupported",
+            };
             let status = get_status_text(dep);
 
             (
@@ -73,21 +82,15 @@ fn prepare_display_data<'a>(filtered_results: &[&'a Dependency]) -> Vec<DisplayD
 }
 
 fn get_status_text(dep: &Dependency) -> &'static str {
-    match &dep.latest_version {
-        Some(latest) => {
-            if dep.is_outdated() {
-                if is_prerelease_version(latest) {
-                    "🟡 Outdated (Pre)"
-                } else {
-                    "🔴 Outdated"
-                }
-            } else if is_prerelease_version(latest) {
-                "🟢 Latest (Pre)"
-            } else {
-                "✅ Latest"
-            }
-        }
-        None => "❓ Unknown",
+    match dep.status() {
+        VersionStatus::Compatible => "✅ Compatible",
+        VersionStatus::UpdateAvailable => "🔴 Update available",
+        VersionStatus::PreReleaseAvailable => "🟡 Pre-release available",
+        VersionStatus::InvalidRequirement => "❓ Invalid requirement",
+        VersionStatus::InvalidLatestVersion => "❓ Invalid latest version",
+        VersionStatus::NotFound => "❓ Not found",
+        VersionStatus::Unavailable => "⚠️  Unavailable",
+        VersionStatus::UnsupportedSource => "⚪ Unsupported source",
     }
 }
 
@@ -161,7 +164,7 @@ fn print_dependency_rows(
     let mut outdated_count = 0;
 
     for (name, current, latest, source, status) in display_data {
-        if status.contains("Outdated") {
+        if status.contains("Update available") {
             outdated_count += 1;
         }
 
@@ -186,27 +189,15 @@ fn print_dependency_rows(
     outdated_count
 }
 
-fn print_summary(outdated_count: usize, cli: &Cli) {
+fn print_summary(outdated_count: usize, has_indeterminate: bool, cli: &Cli) {
     if outdated_count > 0 {
         println!("⚠️  Found {outdated_count} outdated dependencies");
         if cli.output_verbosity().is_verbose() {
             println!("💡 Use 'cargo update <crate_name>' to update specific dependencies");
         }
+    } else if has_indeterminate {
+        println!("⚠️  Results are incomplete; some dependencies could not be evaluated.");
     } else if !cli.output_filter().is_outdated_only() {
         println!("🎉 All dependencies are up to date!");
     }
-}
-
-/// Check if a version string contains pre-release identifiers
-fn is_prerelease_version(version: &str) -> bool {
-    version.contains('-')
-        && (version.contains("alpha") ||
-        version.contains("beta") ||
-        version.contains("rc") ||
-        version.contains("pre") ||
-        version.contains("dev") ||
-        // Also catch numbered pre-releases like "1.0.0-1"
-        version.split('-').nth(1).is_some_and(|part| {
-            part.chars().next().is_some_and(|c| c.is_ascii_digit())
-        }))
 }
