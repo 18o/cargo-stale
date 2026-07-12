@@ -1,5 +1,7 @@
 use anyhow::{Context, Result, bail};
 use cargo_metadata::{DependencyKind, MetadataCommand, Package, Source};
+use std::{collections::HashSet, fs};
+use toml::Value;
 
 use crate::types::{DependencyType, LookupSource, ResolvedDependency};
 
@@ -35,8 +37,9 @@ pub fn resolve_dependencies(
 
     let mut dependencies = Vec::new();
     for package in packages {
+        let package_manifest = read_package_manifest(package)?;
         for dependency in &package.dependencies {
-            let Some(dep_type) = dependency_type(dependency.kind, include_build) else {
+            let Some(mut dep_type) = dependency_type(dependency.kind, include_build) else {
                 continue;
             };
 
@@ -46,10 +49,21 @@ pub fn resolve_dependencies(
 
             let display_name = dependency.rename.as_deref().unwrap_or(&dependency.name);
             let package_name = package.name.to_string();
-            let source = dependency.target.as_ref().map_or_else(
-                || package_name.clone(),
-                |target| format!("{package_name} [{target}]"),
+            let inherited = dependency_uses_workspace(
+                &package_manifest,
+                display_name,
+                dependency.kind,
+                dependency.target.as_ref(),
             );
+            let source = if inherited {
+                dep_type = DependencyType::Workspace;
+                "workspace".to_owned()
+            } else {
+                dependency.target.as_ref().map_or_else(
+                    || package_name.clone(),
+                    |target| format!("{package_name} [{target}]"),
+                )
+            };
             dependencies.push(ResolvedDependency {
                 display_name: display_name.to_owned(),
                 package_name: dependency.name.clone(),
@@ -64,7 +78,64 @@ pub fn resolve_dependencies(
         }
     }
 
+    deduplicate_workspace_dependencies(&mut dependencies);
     Ok(dependencies)
+}
+
+fn read_package_manifest(package: &Package) -> Result<Value> {
+    let content = fs::read_to_string(&package.manifest_path)
+        .with_context(|| format!("Failed to read manifest: {}", package.manifest_path))?;
+    toml::from_str(&content)
+        .with_context(|| format!("Failed to parse manifest: {}", package.manifest_path))
+}
+
+fn dependency_uses_workspace(
+    manifest: &Value,
+    declaration_name: &str,
+    kind: DependencyKind,
+    target: Option<&cargo_metadata::cargo_platform::Platform>,
+) -> bool {
+    let Some(section) = dependency_section(kind) else {
+        return false;
+    };
+
+    let table = if let Some(target) = target {
+        let target = target.to_string();
+        manifest
+            .get("target")
+            .and_then(Value::as_table)
+            .and_then(|targets| targets.get(&target))
+            .and_then(|target| target.get(section))
+    } else {
+        manifest.get(section)
+    };
+
+    table
+        .and_then(|table| table.get(declaration_name))
+        .and_then(Value::as_table)
+        .and_then(|declaration| declaration.get("workspace"))
+        .and_then(Value::as_bool)
+        == Some(true)
+}
+
+fn dependency_section(kind: DependencyKind) -> Option<&'static str> {
+    match kind {
+        DependencyKind::Normal => Some("dependencies"),
+        DependencyKind::Development => Some("dev-dependencies"),
+        DependencyKind::Build => Some("build-dependencies"),
+        DependencyKind::Unknown => None,
+    }
+}
+
+fn deduplicate_workspace_dependencies(dependencies: &mut Vec<ResolvedDependency>) {
+    let mut seen = HashSet::new();
+    dependencies.retain(|dependency| {
+        dependency.dep_type != DependencyType::Workspace
+            || seen.insert((
+                dependency.package_name.clone(),
+                dependency.version_requirement.clone(),
+            ))
+    });
 }
 
 fn should_skip_path_dependency(path_dependency: bool, requirement: &semver::VersionReq) -> bool {
@@ -178,5 +249,75 @@ mod tests {
             true,
             &semver::VersionReq::parse("^1").expect("valid requirement")
         ));
+    }
+
+    #[test]
+    fn collapses_inherited_dependencies_without_hiding_direct_member_dependencies() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time must be after the Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("cargo-stale-workspace-{unique}"));
+
+        fs::create_dir_all(&root).expect("fixture root must be created");
+        fs::write(
+            root.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"agent\", \"app\"]\nresolver = \"2\"\n\n[workspace.dependencies]\ntokio-tungstenite = \"0.29\"\njson = { package = \"serde_json\", version = \"1\" }\n",
+        )
+        .expect("workspace manifest must be written");
+
+        for (member, dependency_section) in [
+            (
+                "agent",
+                "[dependencies]\ntokio-tungstenite.workspace = true\nserde = \"1\"\n\n[build-dependencies]\njson.workspace = true\n",
+            ),
+            (
+                "app",
+                "[dependencies]\nserde = \"1\"\n\n[dev-dependencies]\ntokio-tungstenite.workspace = true\n\n[target.'cfg(unix)'.dependencies]\njson.workspace = true\n",
+            ),
+        ] {
+            let member_dir = root.join(member);
+            fs::create_dir_all(member_dir.join("src"))
+                .expect("fixture member source directory must be created");
+            fs::write(
+                member_dir.join("Cargo.toml"),
+                format!(
+                    "[package]\nname = \"{member}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n{dependency_section}"
+                ),
+            )
+            .expect("fixture member manifest must be written");
+            fs::write(member_dir.join("src/lib.rs"), "")
+                .expect("fixture member library must be written");
+        }
+
+        let dependencies =
+            resolve_dependencies(root.join("Cargo.toml").to_str().unwrap(), true, true)
+                .expect("fixture workspace must resolve");
+        fs::remove_dir_all(&root).expect("fixture directory must be removed");
+
+        let inherited: Vec<_> = dependencies
+            .iter()
+            .filter(|dependency| dependency.package_name == "tokio-tungstenite")
+            .collect();
+        assert_eq!(inherited.len(), 1);
+        assert_eq!(inherited[0].source, "workspace");
+        assert_eq!(inherited[0].dep_type, DependencyType::Workspace);
+
+        let inherited_renamed: Vec<_> = dependencies
+            .iter()
+            .filter(|dependency| dependency.package_name == "serde_json")
+            .collect();
+        assert_eq!(inherited_renamed.len(), 1);
+        assert_eq!(inherited_renamed[0].display_name, "json");
+        assert_eq!(inherited_renamed[0].source, "workspace");
+        assert_eq!(inherited_renamed[0].dep_type, DependencyType::Workspace);
+
+        let direct: Vec<_> = dependencies
+            .iter()
+            .filter(|dependency| dependency.package_name == "serde")
+            .collect();
+        assert_eq!(direct.len(), 2);
+        assert!(direct.iter().any(|dependency| dependency.source == "agent"));
+        assert!(direct.iter().any(|dependency| dependency.source == "app"));
     }
 }

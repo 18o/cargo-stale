@@ -50,6 +50,7 @@ pub enum DependencyType {
     Normal,
     Dev,
     Build,
+    Workspace,
 }
 
 impl std::fmt::Display for DependencyType {
@@ -58,6 +59,7 @@ impl std::fmt::Display for DependencyType {
             DependencyType::Normal => write!(f, ""),
             DependencyType::Dev => write!(f, " (dev)"),
             DependencyType::Build => write!(f, " (build)"),
+            DependencyType::Workspace => write!(f, " (workspace)"),
         }
     }
 }
